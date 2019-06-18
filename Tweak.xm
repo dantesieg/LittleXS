@@ -12,7 +12,7 @@ static BOOL wantsHomeBar, wantsKeyboardDock, wantsRoundedAppSwitcher, wantsReduc
 %end
 
 
-@interface CCUIHeaderPocketView : UIView				
+@interface CCUIHeaderPocketView : UIView
 @end
 
 // Part of FUGap - stops the giltchy bluring effect from happening in the control center
@@ -35,12 +35,53 @@ static BOOL wantsHomeBar, wantsKeyboardDock, wantsRoundedAppSwitcher, wantsReduc
 %end
 
 // Removing the toggles on the lockscreen.
-%hook SBDashBoardQuickActionsViewController	
+%hook SBDashBoardQuickActionsViewController
 -(BOOL)hasFlashlight {
-	return NO;
+	return YES;
 }
 -(BOOL)hasCamera {
-	return NO;
+	return YES;
+}
+%end
+
+@interface SpringBoard : UIApplication
+-(id)_accessibilityFrontMostApplication;
+@end
+
+@interface SBApplication
+-(id)bundleIdentifier;
+@end
+
+@interface SBIconController : UIViewController
++(instancetype)sharedInstance;
+@property (nonatomic, assign) BOOL isEditing;
+@end
+
+%hook SBFluidSwitcherGestureManager
+-(BOOL)grabberTongueOrPullEnabled:(id)arg1 {
+  SBApplication *front = nil;
+  SpringBoard *springboard = (SpringBoard*)[NSClassFromString(@"SpringBoard") sharedApplication];
+  front = [springboard _accessibilityFrontMostApplication];
+  NSString *runner = front.bundleIdentifier;
+  if (runner == nil && [[%c(SBIconController) sharedInstance] isEditing]) {
+    return NO;
+  }
+  else {
+    return %orig;
+  }
+}
+%end
+
+%hook SBAppSwitcherSettings
+-(long long)effectiveKillAffordanceStyle {
+  return 2;
+}
+%end
+
+%hook SBFluidSwitcherViewController
+- (double)_killGestureHysteresis {
+	double orig = %orig;
+	return orig == 30 ? 10 : orig;
 }
 %end
 
@@ -229,7 +270,14 @@ static BOOL wantsHomeBar, wantsKeyboardDock, wantsRoundedAppSwitcher, wantsReduc
 %hook SBIconListView
 + (NSUInteger)maxVisibleIconRowsInterfaceOrientation:(UIInterfaceOrientation)orientation {
 	NSUInteger orig = %orig;
-	return orig-1;
+	return orig - 1;
+}
+%end
+
+%hook SBRootIconListView
+-(CGFloat)verticalIconPadding {
+  CGFloat inset = %orig;
+  return inset - 6;
 }
 %end
 %end
@@ -347,7 +395,7 @@ int applicationDidFinishLaunching;
 %end
 
 // Adds the bottom inset to the screen.
-%group InsetX	
+%group InsetX
 
 extern "C" CFPropertyListRef MGCopyAnswer(CFStringRef);
 
@@ -392,50 +440,50 @@ CFPropertyListRef new_MGCopyAnswer_internal(CFStringRef property, uint32_t *outT
         return copy;
     }  else if ((k("8olRm6C1xqr7AJGpLRnpSw") || k("PearlIDCapability")) && [bundleIdentifier isEqualToString:@"com.apple.springboard"]) {
         return (__bridge CFPropertyListRef)@YES;
-    } 
+    }
 	return r;
 }
 %end
 
 // Adds the bottom inset to the screen.
-%group bottomInset		
-%hook UITabBar		
-- (void)layoutSubviews {		
-    %orig;		
-    CGRect _frame = self.frame;		
-    if (_frame.size.height == 49) {		
-        _frame.size.height = 70;		
-        _frame.origin.y = [[UIScreen mainScreen] bounds].size.height - 70;		
-    }		
-    self.frame = _frame;		
-}		
-%end		
+%group bottomInset
+%hook UITabBar
+- (void)layoutSubviews {
+    %orig;
+    CGRect _frame = self.frame;
+    if (_frame.size.height == 49) {
+        _frame.size.height = 70;
+        _frame.origin.y = [[UIScreen mainScreen] bounds].size.height - 70;
+    }
+    self.frame = _frame;
+}
+%end
 
-%hook UIApplicationSceneSettings		
-- (UIEdgeInsets)_inferredLayoutMargins {		
-    return UIEdgeInsetsMake(32,0,0,0); 		
-}		
-- (UIEdgeInsets)safeAreaInsetsLandscapeLeft {		
-    UIEdgeInsets _insets = %orig;		
-    _insets.bottom = 21;		
-    return _insets;		
-}		
-- (UIEdgeInsets)safeAreaInsetsLandscapeRight {		
-    UIEdgeInsets _insets = %orig;		
-    _insets.bottom = 21;		
-    return _insets;		
-}		
-- (UIEdgeInsets)safeAreaInsetsPortrait {		
-    UIEdgeInsets _insets = %orig;		
-    _insets.bottom = 21;		
-    return _insets;		
-}		
-- (UIEdgeInsets)safeAreaInsetsPortraitUpsideDown {		
-    UIEdgeInsets _insets = %orig;		
-    _insets.bottom = 21;		
-    return _insets;		
- }		
- %end		
+%hook UIApplicationSceneSettings
+- (UIEdgeInsets)_inferredLayoutMargins {
+    return UIEdgeInsetsMake(32,0,0,0);
+}
+- (UIEdgeInsets)safeAreaInsetsLandscapeLeft {
+    UIEdgeInsets _insets = %orig;
+    _insets.bottom = 21;
+    return _insets;
+}
+- (UIEdgeInsets)safeAreaInsetsLandscapeRight {
+    UIEdgeInsets _insets = %orig;
+    _insets.bottom = 21;
+    return _insets;
+}
+- (UIEdgeInsets)safeAreaInsetsPortrait {
+    UIEdgeInsets _insets = %orig;
+    _insets.bottom = 21;
+    return _insets;
+}
+- (UIEdgeInsets)safeAreaInsetsPortraitUpsideDown {
+    UIEdgeInsets _insets = %orig;
+    _insets.bottom = 21;
+    return _insets;
+ }
+ %end
  %end
 
 // Enables PiP in video player.
@@ -495,10 +543,10 @@ static CGFloat offset = 0;
 %hook SBUIBiometricResource
 - (id)init {
 	id r = %orig;
-	
+
 	MSHookIvar<BOOL>(r, "_hasMesaHardware") = NO;
 	MSHookIvar<BOOL>(r, "_hasPearlHardware") = YES;
-	
+
 	return r;
 }
 %end
@@ -573,7 +621,7 @@ static void loadPrefs() {
     wantsOriginalButtons = (BOOL)[[globalSettings objectForKey:@"originalButtons"]?:@FALSE boolValue];
     wantsRoundedCorners = (BOOL)[[globalSettings objectForKey:@"roundedCorners"]?:@FALSE boolValue];
     wantsPIP = (BOOL)[[globalSettings objectForKey:@"PIP"]?:@FALSE boolValue];
-    wantsProudLock = (BOOL)[[globalSettings objectForKey:@"ProudLock"]?:@TRUE boolValue];
+    wantsProudLock = (BOOL)[[globalSettings objectForKey:@"ProudLock"]?:@FALSE boolValue];
     wantsHideSBCC = (BOOL)[[globalSettings objectForKey:@"HideSBCC"]?:@FALSE boolValue];
 }
 
@@ -581,7 +629,7 @@ static void loadPrefs() {
     @autoreleasepool {
         loadPrefs();
 
-        if(statusBarStyle == 1) %init(StatusBariPad) 
+        if(statusBarStyle == 1) %init(StatusBariPad)
 	    else if(statusBarStyle == 2) %init(StatusBarX);
         else wantsHideSBCC = YES;
 
@@ -596,7 +644,7 @@ static void loadPrefs() {
             }
             %init(InsetX);
         } else if(bottomInsetVersion == 1) %init(bottomInset);
-        
+
     	if (wantsHomeBar) %init(CameraFix);
         else %init(hideHomeBar);
 
